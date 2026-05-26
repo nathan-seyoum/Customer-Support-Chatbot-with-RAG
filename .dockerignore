@@ -1,0 +1,34 @@
+# Source-control + editor
+.git
+.github
+.gitignore
+.vscode
+.idea
+*.swp
+
+# Python build / cache
+__pycache__
+*.py[cod]
+*.egg-info
+build
+dist
+.venv
+venv
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# Local state — should never end up in the image
+.env
+.env.local
+data/chroma
+.cache
+
+# Tests (kept out of the runtime image)
+tests
+
+# Docs
+README.md
+DESIGN.md
+*.md
+!data/docs/*.md
