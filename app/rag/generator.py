@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from app.providers.base import LLMClient
 from app.stores.base import RetrievedChunk
 
-
 SYSTEM_PROMPT = """You are a customer support assistant. Answer the user's question using ONLY the provided context passages. Follow these rules strictly:
 
 1. If the context does not contain enough information to answer, reply exactly: "I don't have enough information in the knowledge base to answer that."

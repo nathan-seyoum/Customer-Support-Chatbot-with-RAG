@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 # Order matters: most semantic boundary first.
 DEFAULT_SEPARATORS: tuple[str, ...] = (
     "\n\n",   # paragraph

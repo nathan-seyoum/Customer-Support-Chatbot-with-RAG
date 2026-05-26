@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Environments
+.env
+.env.local
+
+# Caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.cache/
+
+# Vector store + downloaded models
+data/chroma/
+data/cache/
+.cache/huggingface/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,78 @@
+# docker compose up
+#
+# Brings up the whole stack:
+#   - ollama       : local LLM server (port 11434)
+#   - ollama-pull  : one-shot job that pulls the default model into ollama
+#   - app          : FastAPI + the Apple-themed frontend (port 8000)
+#
+# After everything is healthy, open http://localhost:8000.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: support-rag-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  # Sidecar that pulls the default model once and then exits.
+  # Re-runs are cheap — Ollama short-circuits if the layer is already present.
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: support-rag-ollama-pull
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["ollama pull ${LLM_MODEL:-gemma3:1b}"]
+    restart: "no"
+    volumes:
+      - ollama-data:/root/.ollama
+
+  app:
+    build:
+      context: .
+      args:
+        # Set PREWARM=1 to bake the embedder + NLI weights into the image at
+        # build time. Bigger image, instant first request. Default off.
+        PREWARM: "${PREWARM:-0}"
+    container_name: support-rag-app
+    ports:
+      - "8000:8000"
+    environment:
+      # Talk to the sibling ollama service.
+      - LLM_BASE_URL=http://ollama:11434
+      - LLM_PROVIDER=ollama
+      - LLM_MODEL=${LLM_MODEL:-gemma3:1b}
+
+      # Persist Chroma in a named volume.
+      - CHROMA_PERSIST_DIR=/srv/app/data/chroma
+
+      # Auto-ingest the bundled corpus on first boot (only if the store is empty).
+      - INGEST_ON_STARTUP_PATH=/srv/app/data/docs
+
+      - LOG_LEVEL=INFO
+    volumes:
+      - chroma-data:/srv/app/data/chroma
+      - hf-cache:/root/.cache/huggingface
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  ollama-data:
+  chroma-data:
+  hf-cache:

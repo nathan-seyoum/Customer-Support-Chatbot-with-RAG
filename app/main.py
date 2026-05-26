@@ -26,7 +26,6 @@ from app.config import get_settings
 from app.ingestion.pipeline import IngestionPipeline
 from app.rag.pipeline import RAGPipeline
 
-
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 
