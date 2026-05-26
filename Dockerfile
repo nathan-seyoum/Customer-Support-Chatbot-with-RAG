@@ -24,10 +24,11 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --upgrade pip \
  && pip install .
 
-# Always create the cache dir so the runtime stage can COPY it whether or not
-# we pre-warmed models below. Without this, PREWARM=0 builds fail because the
-# directory the runtime tries to COPY doesn't exist in this stage.
-RUN mkdir -p /root/.cache/huggingface
+# Pin the HuggingFace cache to an explicit, builder-owned path so the runtime
+# stage's COPY always has a real directory to read from — even when we skip
+# the pre-warm step below.
+ENV HF_HOME=/opt/hf-cache
+RUN mkdir -p /opt/hf-cache
 
 # Optional: pre-warm HuggingFace caches so the first request isn't a 500MB download.
 # Disabled by default to keep the image lean; enable with --build-arg PREWARM=1.
@@ -55,8 +56,9 @@ WORKDIR /srv/app
 
 # Bring over the venv from the builder.
 COPY --from=builder /opt/venv /opt/venv
-# Bring over any pre-warmed HF cache from the builder stage.
-COPY --from=builder /root/.cache /root/.cache
+# Bring over the HF cache from the builder. Path always exists (created in the
+# builder stage) so this COPY succeeds whether or not we pre-warmed models.
+COPY --from=builder /opt/hf-cache /root/.cache/huggingface
 
 # Application code, web assets, and a starter corpus.
 COPY app  ./app
