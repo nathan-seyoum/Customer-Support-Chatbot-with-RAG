@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#fbfbfd" />
+  <title>Support — Knowledge Base</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">●</span>
+        <span class="brand-name">Support</span>
+      </a>
+      <nav class="nav-links" aria-hidden="true">
+        <span>Help Center</span>
+        <span>Status</span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>How can we help?</h1>
+      <p class="subtitle">
+        Ask a question. We'll answer from our knowledge base —
+        and show you exactly where the answer came from.
+      </p>
+
+      <form id="ask-form" class="ask">
+        <input
+          id="q"
+          type="text"
+          autocomplete="off"
+          spellcheck="true"
+          placeholder="Search support — e.g. How long do refunds take?"
+          aria-label="Ask a question"
+        />
+        <button type="submit" id="ask-btn">
+          <span class="btn-label">Ask</span>
+          <svg viewBox="0 0 16 16" aria-hidden="true" class="btn-arrow">
+            <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </form>
+
+      <ul class="suggestions" id="suggestions">
+        <li><button type="button" data-q="How long do refunds take?">How long do refunds take?</button></li>
+        <li><button type="button" data-q="Can I cancel an order after it ships?">Can I cancel an order after it ships?</button></li>
+        <li><button type="button" data-q="Do you ship internationally?">Do you ship internationally?</button></li>
+        <li><button type="button" data-q="How do I enable two-factor authentication?">How do I enable two-factor authentication?</button></li>
+      </ul>
+    </section>
+
+    <section id="result" class="result" aria-live="polite"></section>
+  </main>
+
+  <footer class="footer">
+    <small>Customer-Support RAG · Powered by local AI</small>
+  </footer>
+
+  <!-- ────────── State templates (cloned by app.js) ────────── -->
+  <template id="tpl-loading">
+    <div class="card card-loading">
+      <div class="spinner" aria-hidden="true">
+        <div></div><div></div><div></div>
+      </div>
+      <div class="loading-text">
+        <p class="loading-title">Searching the knowledge base…</p>
+        <p class="loading-sub" id="loading-stage">Retrieving relevant passages</p>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-failure">
+    <div class="card card-failure">
+      <div class="failure-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="28" height="28">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M12 7v6M12 16.5v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h2>Something went wrong</h2>
+      <p class="failure-message"></p>
+      <button type="button" class="retry-btn">Try again</button>
+    </div>
+  </template>
+
+  <template id="tpl-success">
+    <article class="card card-success">
+      <header class="answer-header">
+        <span class="kicker">ANSWER</span>
+        <span class="grounded-badge"></span>
+      </header>
+      <p class="answer-text"></p>
+      <footer class="latency"></footer>
+    </article>
+
+    <section class="sources">
+      <header>
+        <span class="kicker">SOURCES</span>
+      </header>
+      <ol class="citation-list"></ol>
+    </section>
+
+    <details class="hallucination-details">
+      <summary>Groundedness breakdown</summary>
+      <div class="hallucination-body"></div>
+    </details>
+  </template>
+
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>
