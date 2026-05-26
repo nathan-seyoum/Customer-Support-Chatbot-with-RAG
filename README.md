@@ -314,8 +314,4 @@ data/
 tests/                  # fast tests with fakes
 ```
 
----
 
-## Further reading
-
-The companion document [DESIGN.md](./DESIGN.md) explains every design choice and points to the authoritative docs you should read to deepen your understanding of each piece: RAG theory, embeddings, MMR, NLI-based hallucination detection, ChromaDB, FastAPI, and more.
