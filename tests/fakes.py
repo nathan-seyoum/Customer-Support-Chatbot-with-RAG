@@ -9,21 +9,36 @@ from __future__ import annotations
 
 import hashlib
 import math
+import re
 from typing import Sequence
 
 from app.stores.base import Chunk, RetrievedChunk
 
+_TOKEN_RE = re.compile(r"\w+")
 
-def _hashed_vec(text: str, dim: int = 16) -> list[float]:
-    """Deterministic pseudo-embedding: hash text into a fixed-length vector."""
-    h = hashlib.sha256(text.lower().encode("utf-8")).digest()
-    raw = [(h[i % len(h)] - 128) / 128.0 for i in range(dim)]
-    norm = math.sqrt(sum(x * x for x in raw)) or 1.0
-    return [x / norm for x in raw]
+
+def _hashed_vec(text: str, dim: int = 64) -> list[float]:
+    """Deterministic token-based pseudo-embedding.
+
+    Each word in the text activates a couple of dimensions (chosen by hashing
+    the word). Texts that share words end up with overlapping vectors and a
+    higher dot product — the property real semantic embeddings have but a
+    naive whole-text hash does not. The result is L2-normalized so cosine
+    similarity reduces to a dot product.
+    """
+    vec = [0.0] * dim
+    for tok in _TOKEN_RE.findall(text.lower()):
+        digest = hashlib.sha256(tok.encode("utf-8")).digest()
+        idx_a = int.from_bytes(digest[:4], "big") % dim
+        idx_b = int.from_bytes(digest[4:8], "big") % dim
+        vec[idx_a] += 1.0
+        vec[idx_b] += 1.0
+    norm = math.sqrt(sum(x * x for x in vec)) or 1.0
+    return [x / norm for x in vec]
 
 
 class FakeEmbedder:
-    dimension = 16
+    dimension = 64
 
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
         return [_hashed_vec(t, self.dimension) for t in texts]
