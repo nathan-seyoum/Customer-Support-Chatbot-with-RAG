@@ -24,6 +24,11 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --upgrade pip \
  && pip install .
 
+# Always create the cache dir so the runtime stage can COPY it whether or not
+# we pre-warmed models below. Without this, PREWARM=0 builds fail because the
+# directory the runtime tries to COPY doesn't exist in this stage.
+RUN mkdir -p /root/.cache/huggingface
+
 # Optional: pre-warm HuggingFace caches so the first request isn't a 500MB download.
 # Disabled by default to keep the image lean; enable with --build-arg PREWARM=1.
 ARG PREWARM=0
