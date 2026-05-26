@@ -4,7 +4,7 @@ A retrieval-augmented question-answering service for customer-support knowledge 
 
 The whole stack runs **locally by default** (sentence-transformers + Ollama + ChromaDB + a local NLI model) and every component sits behind a small protocol so you can swap in OpenAI, Anthropic, or a different vector store by changing a single environment variable. A clean, Apple-inspired web UI is served from the same FastAPI process, and the whole thing comes up with `docker compose up`.
 
-> See [DESIGN.md](./DESIGN.md) for the why behind each component, pro/con comparisons, and a curated list of documentation to read alongside this project.
+
 
 ---
 
