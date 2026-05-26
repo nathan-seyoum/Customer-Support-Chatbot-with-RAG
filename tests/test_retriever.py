@@ -1,6 +1,5 @@
 from app.rag.retriever import RetrievalConfig, Retriever, _mmr
 from app.stores.base import Chunk
-
 from tests.fakes import FakeEmbedder, InMemoryVectorStore
 
 

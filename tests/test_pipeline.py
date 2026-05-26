@@ -5,7 +5,6 @@ from app.rag.hallucination import HallucinationDetector, HallucinationResult
 from app.rag.pipeline import RAGPipeline
 from app.rag.retriever import RetrievalConfig, Retriever
 from app.stores.base import Chunk
-
 from tests.fakes import FakeEmbedder, FakeLLM, InMemoryVectorStore
 
 

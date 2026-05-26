@@ -28,7 +28,6 @@ from dataclasses import dataclass, field
 
 from app.stores.base import RetrievedChunk
 
-
 # Cross-encoder NLI heads from HF typically have labels in this order:
 # [contradiction, entailment, neutral]  (e.g. cross-encoder/nli-deberta-v3-base)
 # We resolve the mapping at runtime via model.config.id2label to stay robust.
