@@ -18,7 +18,10 @@ def build_embedder(settings: Settings | None = None) -> Embedder:
     if provider == "local":
         from app.providers.local import SentenceTransformerEmbedder
 
-        return SentenceTransformerEmbedder(model_name=settings.embedder_model)
+        return SentenceTransformerEmbedder(
+            model_name=settings.embedder_model,
+            device=settings.device,
+        )
 
     if provider == "openai":  # pragma: no cover - optional path
         try:

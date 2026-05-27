@@ -22,23 +22,30 @@ function clearResult() {
   while (resultEl.firstChild) resultEl.removeChild(resultEl.firstChild);
 }
 
+// Map server-emitted stage names to user-facing labels. The pipeline
+// (app/rag/pipeline.py) fires a stage event right *before* each step starts,
+// so whatever shows here is what the server is actually doing right now.
+const STAGE_LABELS = {
+  retrieve: "Retrieving relevant passages",
+  generate: "Generating a grounded answer",
+  detect:   "Checking the answer for hallucinations",
+};
+
 function renderLoading() {
   clearResult();
   const node = tpl.loading.content.cloneNode(true);
   resultEl.appendChild(node);
-  // Rotate the sub-stage so the user sees the system is doing work.
-  const stages = [
-    "Retrieving relevant passages",
-    "Generating a grounded answer",
-    "Checking the answer for hallucinations",
-  ];
-  let i = 0;
   const sub = resultEl.querySelector("#loading-stage");
-  const interval = setInterval(() => {
-    i = (i + 1) % stages.length;
-    if (sub) sub.textContent = stages[i];
-  }, 1400);
-  return () => clearInterval(interval);
+  return {
+    setStage(stage, data) {
+      if (!sub) return;
+      let label = STAGE_LABELS[stage] || stage;
+      if (stage === "generate" && data && typeof data.n_chunks === "number") {
+        label = `Retrieved ${data.n_chunks} passage${data.n_chunks === 1 ? "" : "s"} — generating a grounded answer`;
+      }
+      sub.textContent = label;
+    },
+  };
 }
 
 function renderFailure(message, onRetry) {
@@ -154,34 +161,52 @@ async function ask(question) {
   if (!question || !question.trim()) return;
   askBtn.disabled = true;
   input.disabled = true;
-  const stopLoading = renderLoading();
+  const loading = renderLoading();
 
   let aborted = false;
   const controller = new AbortController();
-  // Generous timeout — local LLMs can be slow on first warm-up.
-  const timeoutId = setTimeout(() => { aborted = true; controller.abort(); }, 120_000);
+  // Generous timeout — local LLMs can be slow on first warm-up. The server
+  // pre-warms the NLI model at startup, but if that was skipped we may still
+  // hit a long first request, so we allow plenty of room.
+  const timeoutId = setTimeout(() => { aborted = true; controller.abort(); }, 300_000);
 
   try {
-    const resp = await fetch("/query", {
+    const resp = await fetch("/query/stream", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
       body: JSON.stringify({ question }),
       signal: controller.signal,
     });
-    clearTimeout(timeoutId);
-    stopLoading();
 
     if (!resp.ok) {
+      clearTimeout(timeoutId);
       const detail = await safeReadDetail(resp);
       renderFailure(`Service returned ${resp.status}: ${detail}`, () => ask(question));
       return;
     }
 
-    const payload = await resp.json();
-    renderSuccess(payload);
+    let finalPayload = null;
+    let streamError = null;
+    await readSSE(resp.body, (event, data) => {
+      if (event === "stage") {
+        loading.setStage(data.stage, data);
+      } else if (event === "result") {
+        finalPayload = data;
+      } else if (event === "error") {
+        streamError = data && data.detail ? data.detail : "Server error during streaming.";
+      }
+    });
+    clearTimeout(timeoutId);
+
+    if (streamError) {
+      renderFailure(streamError, () => ask(question));
+    } else if (finalPayload) {
+      renderSuccess(finalPayload);
+    } else {
+      renderFailure("Stream ended without a result.", () => ask(question));
+    }
   } catch (err) {
     clearTimeout(timeoutId);
-    stopLoading();
     const msg = aborted
       ? "The request timed out. The model may still be warming up — try again."
       : err && err.message
@@ -192,6 +217,38 @@ async function ask(question) {
     askBtn.disabled = false;
     input.disabled = false;
     input.focus();
+  }
+}
+
+// Minimal SSE parser. Reads a fetch response body and invokes `onEvent` for
+// each complete `event:`/`data:` pair. Sticking with fetch (rather than
+// EventSource) because the server expects POST + JSON body.
+async function readSSE(body, onEvent) {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let sep;
+    while ((sep = buffer.indexOf("\n\n")) !== -1) {
+      const raw = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      let event = "message";
+      const dataLines = [];
+      for (const line of raw.split("\n")) {
+        if (line.startsWith("event:")) event = line.slice(6).trim();
+        else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+      }
+      if (dataLines.length === 0) continue;
+      let data;
+      try { data = JSON.parse(dataLines.join("\n")); }
+      catch { data = dataLines.join("\n"); }
+      onEvent(event, data);
+    }
   }
 }
 

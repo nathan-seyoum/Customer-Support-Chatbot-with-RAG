@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router as api_router
-from app.config import get_settings
+from app.config import get_settings, resolve_device
 from app.ingestion.pipeline import IngestionPipeline
 from app.rag.pipeline import RAGPipeline
 
@@ -58,16 +58,35 @@ async def lifespan(app: FastAPI):
     _configure_logging(settings.log_level)
     logger = logging.getLogger("app.main")
 
+    # Push HF_TOKEN into the process environment so huggingface_hub picks it up
+    # for model downloads. pydantic-settings reads .env into our Settings but
+    # doesn't propagate to os.environ on its own.
+    if settings.hf_token and not os.environ.get("HF_TOKEN"):
+        os.environ["HF_TOKEN"] = settings.hf_token
+        logger.info("HF_TOKEN loaded from settings; authenticated downloads enabled")
+
+    resolved_device = resolve_device(settings.device)
     logger.info(
-        "starting pipeline: embedder=%s/%s llm=%s/%s store=%s",
+        "starting pipeline: embedder=%s/%s llm=%s/%s store=%s device=%s (configured=%s)",
         settings.embedder_provider,
         settings.embedder_model,
         settings.llm_provider,
         settings.llm_model,
         settings.vector_store,
+        resolved_device,
+        settings.device,
     )
     pipeline = RAGPipeline.from_settings(settings)
     _maybe_seed_knowledge_base(pipeline, logger)
+
+    # Pre-warm the NLI cross-encoder (~738MB) so the first /query doesn't hang
+    # on a model download that routinely exceeds the frontend request timeout.
+    logger.info("warming up hallucination detector (downloads NLI model on first run)…")
+    try:
+        pipeline.warmup()
+    except Exception:
+        logger.exception("warmup failed; first query will retry the load")
+
     app.state.pipeline = pipeline
     logger.info("pipeline ready; %d chunks in store", pipeline.retriever.store.count())
 

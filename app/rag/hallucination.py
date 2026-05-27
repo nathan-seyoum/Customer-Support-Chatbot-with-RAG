@@ -94,9 +94,15 @@ def split_into_sentences(text: str) -> list[str]:
 # Detector
 # ---------------------------------------------------------------------------
 class HallucinationDetector:
-    def __init__(self, model_name: str = "cross-encoder/nli-deberta-v3-base", threshold: float = 0.5):
+    def __init__(
+        self,
+        model_name: str = "cross-encoder/nli-deberta-v3-base",
+        threshold: float = 0.5,
+        device: str = "auto",
+    ):
         self.model_name = model_name
         self.threshold = threshold
+        self.device = device
         self._model = None  # lazy
         self._entailment_idx: int | None = None
 
@@ -106,7 +112,9 @@ class HallucinationDetector:
         # sentence-transformers ships a thin wrapper around HF cross-encoders.
         from sentence_transformers import CrossEncoder
 
-        self._model = CrossEncoder(self.model_name)
+        from app.config import resolve_device
+
+        self._model = CrossEncoder(self.model_name, device=resolve_device(self.device))
         # Resolve label index dynamically so swapping NLI models still works.
         id2label = self._model.model.config.id2label
         self._entailment_idx = next(

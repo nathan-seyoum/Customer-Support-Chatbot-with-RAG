@@ -62,3 +62,40 @@ def test_health_and_query_round_trip():
         assert body["citations"], "expected at least one citation"
         assert body["hallucination"]["flagged"] is False
         assert "total_ms" in body["latency_ms"]
+
+
+def test_query_stream_emits_stages_then_result():
+    import json as _json
+
+    app.router.lifespan_context = _stub_lifespan
+
+    with TestClient(app) as client:
+        with client.stream(
+            "POST", "/query/stream", json={"question": "How long do refunds take?"}
+        ) as resp:
+            assert resp.status_code == 200
+            assert resp.headers["content-type"].startswith("text/event-stream")
+
+            events = []
+            buffer = ""
+            for chunk in resp.iter_text():
+                buffer += chunk
+                while "\n\n" in buffer:
+                    raw, buffer = buffer.split("\n\n", 1)
+                    event = "message"
+                    data_lines = []
+                    for line in raw.splitlines():
+                        if line.startswith("event:"):
+                            event = line[6:].strip()
+                        elif line.startswith("data:"):
+                            data_lines.append(line[5:].strip())
+                    events.append((event, _json.loads("\n".join(data_lines))))
+
+    stage_events = [e for e in events if e[0] == "stage"]
+    result_events = [e for e in events if e[0] == "result"]
+    assert [e[1]["stage"] for e in stage_events] == ["retrieve", "generate", "detect"]
+    assert len(result_events) == 1
+    payload = result_events[0][1]
+    assert payload["citations"], "expected at least one citation"
+    assert payload["hallucination"]["flagged"] is False
+    assert "total_ms" in payload["latency_ms"]

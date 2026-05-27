@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     # NLI (hallucination detection)
     nli_model: str = "cross-encoder/nli-deberta-v3-base"
 
+    # Compute device for local sentence-transformers / cross-encoder models.
+    # "auto" picks CUDA → MPS → CPU at startup. Anything else is passed through
+    # to torch as-is, so "cuda", "cuda:0", "cuda:1", "mps", "cpu" all work.
+    device: str = "auto"
+
     # Vector store
     vector_store: Literal["chroma"] = "chroma"
     chroma_persist_dir: Path = Path("./data/chroma")
@@ -54,8 +59,29 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     voyage_api_key: str | None = None
+    hf_token: str | None = None
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
+
+
+def resolve_device(configured: str) -> str:
+    """Resolve `device="auto"` to a concrete torch device string.
+
+    Anything other than "auto" is returned unchanged so users can force a
+    specific device (e.g. "cuda:1", "cpu", "mps"). Torch is imported lazily so
+    test paths that don't touch local models don't pay the import cost.
+    """
+    if configured != "auto":
+        return configured
+    try:
+        import torch
+    except ImportError:
+        return "cpu"
+    if torch.cuda.is_available():
+        return "cuda"
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"

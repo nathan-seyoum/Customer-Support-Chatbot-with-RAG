@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe -m pytest tests/test_pipeline.py tests/test_api.py -x -q)"
+    ]
+  }
+}
